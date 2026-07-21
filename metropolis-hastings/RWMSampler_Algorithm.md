@@ -1,0 +1,76 @@
+# RWM Sampler
+
+
+# Random Walk Metropolis Sampler
+
+We want to create a generic sampler called RWMsampler that implements
+the Random Walk Metropolis algorithm and produces draws $\theta^t$ from
+a posterior with log-density available up to a constant. The
+multivariate proposal is :
+$$\theta^{*} \sim \mathcal{N}\!\big(\theta^{(t-1)},\, c\,\Sigma\big)$$
+
+where c is a scaling constant controlling step size and the $\Sigma$ is
+a user-specified covariance matrix.
+
+Step by step this in algorithm and at each itteration:
+
+1- A candidate value of $\theta^*$ is proposed from the multivariate
+normal centered at the previous draw.
+
+2- The acceptance probability is calculated as:
+$$\alpha = \min\left(1, \frac{p(\theta^* \mid \text{data})}
+{p(\theta^{(t-1)} \mid \text{data})}\right)$$
+
+Which I intentionally computed it on the logarithmic scale as :
+$$log \alpha
+= \log p(\theta^* \mid \text{data}) - \log p(\theta^{(t-1)} \mid \text{data}$$
+
+This approach is numerically more stable, particularly when the
+posterior densities are very small, as it avoids potential underflow or
+rounding errors that may occur when working directly with probability
+values.
+
+3-The proposal is accepted whenever $\log(u) < \log \alpha$, where
+$u \sim \text{Uniform}(0,1)$.
+
+#### Implementation :
+
+``` r
+RWMsampler <- function(logPostFunc, initVal, nSim, nBurn, Sigma_proposal, c, ...){   
+  # Run the algorithm for nSim iterations 
+  # using the multivariate proposal N(theta_previous_draw, c*Sigma)
+  # Return the posterior draws after discarding nBurn iterations as burn-in
+  p = length(initVal)
+  S <- c*Sigma_proposal
+  
+  theta_post <- matrix(0, nrow = nSim+nBurn, ncol = p)
+  theta_post[1,] <- initVal
+  alpha_vec <- rep(0,nSim+nBurn)
+  
+  for (i in 2:(nSim+nBurn)) {
+    theta_candidate <- as.vector(rmvnorm(1, theta_post[i-1,], sigma = S))
+
+    alpha <- min(1, exp(logPostFunc(theta_candidate, ...) - logPostFunc(theta_post[i-1,], ...)))
+    alpha_vec[i] <- alpha
+    
+    u <- runif(1,0,1)
+    
+
+    if (u < alpha_vec[i]) {
+      theta_post[i,] <- theta_candidate
+    } else {
+      theta_post[i,] <- theta_post[i-1,]
+    }
+  }
+  theta_post <- theta_post[-c(1:nBurn),]
+  alpha_vec <- alpha_vec[-c(1:nBurn)]
+  
+  if (p == 1L) theta_post <- as.vector(theta_post)
+  
+  return (list(theta_post = theta_post, alpha = alpha_vec))
+}
+```
+
+The function successfully generated posterior samples for generic target
+distributions. It correctly handled multidimensional proposals and
+produced a reproducible output matrix of posterior draws.
