@@ -1,15 +1,3 @@
-```{r}
-
-```
-
-```{r}
-
-```
-
-```{r}
-
-```
-
 ---
 title: "RWM Sampler"
 format: html
