@@ -1,6 +1,6 @@
 ---
 title: "RWM Sampler"
-format: html
+format: gfm
 editor: visual
 ---
 
